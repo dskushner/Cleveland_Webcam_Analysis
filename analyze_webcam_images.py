@@ -28,15 +28,13 @@ for image_filename in os.listdir(raw_image_dir):
     image_name = image_filename.split('.')[0]
     
     # regular expression to get date and time of webcam image
-    # # image_name = 'cleveland_clco-20201113T145900Z'
     p = re.compile(r'cleveland_clco-(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})')
     match = p.findall(image_name)
     if not match:
         p = re.compile(r'cleveland_clco-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})')
         match = p.findall(image_name)
     match = match[0]
-    print(match)
-    break
+ 
 
     # Convert image to greyscale then apply sobel edge detection
     grayscale_image = ImageOps.grayscale(tested_image)
