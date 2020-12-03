@@ -18,7 +18,7 @@ reference_image = Image.open(ref_image_path + 'Cleveland_webcam_reference.png')
 reference_image_array = np.asarray(reference_image)
 
 # Create and append the cloud detection images
-fields=["yyyy-mm-dd", "time(UTC)", "Night/Fog(True/False)", "Low_Clouds(True/False)", "High_Clouds(True/False)", "Clear(True/False)"]
+fields=["yyyy-mm-dd", "time(UTC)", "Night/Fog(True/False)", "high_left_clouds(True/False)", "high_left_saturation(%)" ,"high_right_clouds(True/False)", "high_right_saturation(%)","low_left_clouds(True/False)", "low_left_saturation(%)", "low_right_clouds(True/False)", "low_right_saturation(%)", "Clear(True/False)"]
 with open(output_image_path+'CLCO_Cloud_Detections.csv', 'w', newline='') as f:
     writer = csv.writer(f)
     writer.writerow(fields)
@@ -115,39 +115,98 @@ for image_filename in os.listdir(raw_image_dir):
         right_abs_avgs.append(np.mean(right_abs_dict[y_val]))
         right_rel_avgs.append(np.mean(right_rel_dict[y_val]))
         
-    
+	
     #### METRICS FOR QUALITY OF IMAGE ###
+    
+    # define everything initially
+    high_left_clouds = None
+    low_left_clouds = None
+    high_right_clouds = None 
+    low_right_clouds = None
+    TL_percent_saturated = None
+    BL_percent_saturated = None
+    TR_percent_saturated = None
+    BR_percent_saturated = None
     
     #Code segment for fog and night detection
     unique_abs_vals = set(left_abs_avgs)
     unique_abs_vals.update(right_abs_avgs)
     fog_night_detection = False
+
     if len (unique_abs_vals) == 0:
         fog_night_detection = True
+    else: # only check for clouds if it's not night/fog
+    
+        #Finding the halfway point in the array
+        midway_y_point = Y_reference[int(len(Y_reference)/2)]
+        num_unique_y_values = len(set(Y_reference))
+        saturated_pixel_proportion_cutoff = 0.6
+
+        # TOP LEFT QUADRANT
+       
+        TL_quadrant = []
+        for y_position, yvalue in enumerate(left_ys):
+            if yvalue >= midway_y_point:
+                TL_quadrant.append(left_abs_avgs[y_position])
+        
+        TL_percent_saturated = len(TL_quadrant) / (num_unique_y_values/2)
+        high_left_clouds = True
+        if TL_percent_saturated > saturated_pixel_proportion_cutoff:
+            high_left_clouds = False
+        #print(TL_percent_saturated, high_left_clouds, image_name)
+        
+    
+        #TOP RIGHT QUADRANT
+    
+        TR_quadrant = []
+        for y_position, yvalue in enumerate(right_ys):
+            if yvalue >= midway_y_point:
+                TR_quadrant.append(right_abs_avgs[y_position])
+        
+        TR_percent_saturated = len(TR_quadrant) / (num_unique_y_values/2)
+        high_right_clouds = True
+        if TR_percent_saturated > saturated_pixel_proportion_cutoff:
+            high_right_clouds = False
+        #print(TL_percent_saturated, high_right_clouds, image_name)
     
     
-    #Code segment for low clouds
-    
-    
-    #Code segment for high clouds
-    
-    
-    #Finding the halfway point in the array: For this array (291)
-#     #Print (Y_reference[int(len(Y_reference)/2)])
-#     high_clouds = False
-#     if Y_reference greater than 291 are lower than the cutoff threshold then return true
+        #BOTTOM LEFT QUADRANT
+        
+        BL_quadrant = []
+        for y_position, yvalue in enumerate(left_ys):
+            if yvalue < midway_y_point:
+                BL_quadrant.append(left_abs_avgs[y_position])
+        
+        BL_percent_saturated = len(BL_quadrant) / (num_unique_y_values/2)
+        low_left_clouds = True
+        if BL_percent_saturated > saturated_pixel_proportion_cutoff:
+            low_left_clouds = False
+        #print(TL_percent_saturated, bottom_left_clouds, image_name)
+        
+                
+        #BOTTOM RIGHT QUADRANT
+      
+        BR_quadrant = []
+        for y_position, yvalue in enumerate(right_ys):
+            if yvalue < midway_y_point:
+                BR_quadrant.append(right_abs_avgs[y_position])
+        
+        BR_percent_saturated = len(BR_quadrant) / (num_unique_y_values/2)
+        low_right_clouds = True
+        if BR_percent_saturated > saturated_pixel_proportion_cutoff:
+            low_right_clouds = False
+        #print(TL_percent_saturated, bottom_right_clouds, image_name)        
+        
     
     #Code segment for clear sky
     clear_sky = False
-    if fog_night_detection == False:
+    if fog_night_detection == False and high_left_clouds == False and high_right_clouds == False and low_left_clouds == False and low_right_clouds == False:
         clear_sky = True
 
     ### PUTTING METRICS INTO A SPREADSHEET ###
-    ### Everything in here is currently set to append a False until we develop metrics ###
 
-    # Append the cloud detection images
     if match:
-        fields=[date(int(match[0]), int(match[1]), int(match[2])).isoformat(), time(int(match[3]), int(match[4])).isoformat(), fog_night_detection, False, False, clear_sky]
+        fields=[date(int(match[0]), int(match[1]), int(match[2])).isoformat(), time(int(match[3]), int(match[4])).isoformat(), fog_night_detection, high_left_clouds, TL_percent_saturated, high_right_clouds, TR_percent_saturated, low_left_clouds, BL_percent_saturated, low_right_clouds, BR_percent_saturated, clear_sky]
         with open(output_image_path+'CLCO_Cloud_Detections.csv', 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(fields)
